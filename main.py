@@ -12,6 +12,7 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 
 BASE_DIR = Path(__file__).parent
+WORK_DIR = Path.cwd()
 
 parser = argparse.ArgumentParser(
     prog="mcp-bridge",
@@ -19,7 +20,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument(
-    "--config", type=Path, default=BASE_DIR / "tools.yaml",
+    "--config", type=Path, default=WORK_DIR / "tools.yaml",
     metavar="FILE",
     help="ツール定義 YAML ファイル",
 )
@@ -53,7 +54,7 @@ def run_shell(command: str) -> str:
         cmd = ["sandbox-exec", "-f", str(SANDBOX_PROFILE), "sh", "-c", command]
     else:
         cmd = ["sh", "-c", command]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=BASE_DIR)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=WORK_DIR)
     output = result.stdout
     if result.stderr:
         output += "\n" + result.stderr

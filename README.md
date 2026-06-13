@@ -107,10 +107,13 @@ docker run -p <port>:<port> ...
 
 コンテナ側のMCPクライアントには `localhost` で接続できます。
 
+プロジェクトルートの `.mcp.json` に以下を追加します。
+
 ```json
 {
   "mcpServers": {
     "mcp-bridge": {
+      "type": "http",
       "url": "http://localhost:<port>/mcp"
     }
   }
