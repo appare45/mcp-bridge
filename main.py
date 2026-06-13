@@ -1,15 +1,44 @@
+#!/usr/bin/env -S uv run
+import argparse
 import inspect
+import logging
 import shlex
 import subprocess
 from pathlib import Path
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("mcp-bridge")
-
 BASE_DIR = Path(__file__).parent
-CONFIG_PATH = BASE_DIR / "tools.yaml"
+
+parser = argparse.ArgumentParser(
+    prog="mcp-bridge",
+    description="tools.yaml で定義したコマンドを MCP Tool として公開する HTTP サーバー。",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
+parser.add_argument(
+    "--config", type=Path, default=BASE_DIR / "tools.yaml",
+    metavar="FILE",
+    help="ツール定義 YAML ファイル",
+)
+parser.add_argument(
+    "--sandbox", type=Path, default=None,
+    metavar="FILE",
+    help="sandbox-exec に渡す Seatbelt プロファイル (省略時はサンドボックスなし)",
+)
+parser.add_argument(
+    "--port", type=int, default=8000,
+    help="リスンするポート番号",
+)
+args, _ = parser.parse_known_args()
+
+CONFIG_PATH: Path = args.config
+SANDBOX_PROFILE: Path = args.sandbox
+PORT: int = args.port
+
+mcp = FastMCP("mcp-bridge")
 
 TYPE_MAP = {
     "string": str,
@@ -20,8 +49,11 @@ TYPE_MAP = {
 
 
 def run_shell(command: str) -> str:
-    """シェルコマンドを実行して標準出力/標準エラーを返す"""
-    result = subprocess.run(command, shell=True, capture_output=True, text=True, cwd=BASE_DIR)
+    if SANDBOX_PROFILE:
+        cmd = ["sandbox-exec", "-f", str(SANDBOX_PROFILE), "sh", "-c", command]
+    else:
+        cmd = ["sh", "-c", command]
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=BASE_DIR)
     output = result.stdout
     if result.stderr:
         output += "\n" + result.stderr
@@ -29,13 +61,11 @@ def run_shell(command: str) -> str:
 
 
 def make_tool_func(tool_def: dict):
-    """YAMLのツール定義から、安全にコマンドを実行する関数を動的に生成する"""
     name = tool_def["name"]
     description = tool_def.get("description", "")
     command_template = tool_def["command"]
     params = tool_def.get("parameters", [])
 
-    # 動的に関数のシグネチャ(パラメータ名・型・デフォルト値)を構築する
     sig_params = []
     for p in params:
         ptype = TYPE_MAP.get(p.get("type", "string"), str)
@@ -50,7 +80,6 @@ def make_tool_func(tool_def: dict):
         )
 
     def tool_func(**kwargs) -> str:
-        # 各値をシェルエスケープしてコマンドテンプレートに埋め込む
         safe_values = {k: shlex.quote(str(v)) for k, v in kwargs.items()}
         command = command_template.format(**safe_values)
         return run_shell(command)
@@ -63,6 +92,13 @@ def make_tool_func(tool_def: dict):
 
 
 def load_tools():
+    if not CONFIG_PATH.exists():
+        parser.error(
+            f"設定ファイルが見つかりません: {CONFIG_PATH}\n"
+            "  tools.yaml を作成するか、--config でパスを指定してください。\n"
+            "  例: mcp-bridge --config /path/to/tools.yaml"
+        )
+
     with open(CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
@@ -74,5 +110,9 @@ def load_tools():
 load_tools()
 
 
+def run():
+    mcp.run(transport="streamable-http", port=PORT)
+
+
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    run()

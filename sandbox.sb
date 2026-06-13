@@ -1,0 +1,22 @@
+(version 1)
+(deny default)
+
+(allow process-exec)
+(allow process-fork)
+
+; ソース・SDK・ツールチェーンの読み取り
+(allow file-read*)
+
+; ビルド成果物・一時ファイルの書き込み
+(allow file-write*)
+
+; コンパイラがシステム情報を読む
+(allow sysctl-read)
+
+; Swift ツールチェーンが使う Mach サービス
+(allow mach-lookup)
+
+; 並列コンパイル用プロセス間共有メモリ
+(allow ipc-posix-shm*)
+
+(allow signal (target self))

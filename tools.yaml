@@ -1,31 +1,5 @@
 tools:
-  - name: disk_usage
-    description: ディスク使用量を表示する (df -h)
-    command: "df -h"
-    parameters: []
-
-  - name: list_files
-    description: 指定したディレクトリのファイル一覧を表示する (ls -la)
-    command: "ls -la {path}"
-    parameters:
-      - name: path
-        type: string
-        description: 一覧表示するディレクトリのパス
-        default: "."
-
   - name: current_time
     description: 現在時刻を表示する (date)
     command: "date"
     parameters: []
-
-  - name: ping_host
-    description: 指定したホストにpingを送る
-    command: "ping -c {count} {host}"
-    parameters:
-      - name: host
-        type: string
-        description: pingを送る対象のホスト名またはIPアドレス
-      - name: count
-        type: integer
-        description: ping回数
-        default: 4

@@ -3,24 +3,56 @@
 YAML設定ファイル(`tools.yaml`)を読み込んで、定義されたコマンドを
 MCP Toolとして自動公開するHTTP TransportのMCPサーバー。
 
-## セットアップ
+## ユースケース: DevContainerからホストのコマンドを安全に呼び出す
+
+DevContainerやDockerコンテナ内で動くAIエージェント(Claude Code など)は、
+デフォルトではホストOSのコマンドを実行できません。
+
+mcp-bridgeを**ホスト側**で起動し、コンテナ側のエージェントからHTTP経由でMCPサーバーに接続することで、
+**`tools.yaml`に列挙したコマンドだけ**をエージェントに許可できます。
+
+```
+┌─────────────────────────────────┐       ┌──────────────────────────┐
+│  Host                           │       │  DevContainer            │
+│                                 │       │                          │
+│  mcp-bridge --sandbox sandbox.sb│◀─────▶│  AI Agent (Claude Code)  │
+│  (http://localhost:8000/mcp)    │  MCP  │                          │
+│                                 │       │                          │
+│  ホストのコマンドを制限付きで実行 │       │  tools.yaml の範囲でのみ  │
+│                                 │       │  ホストコマンドを呼べる   │
+└─────────────────────────────────┘       └──────────────────────────┘
+```
+
+`tools.yaml` で公開するコマンドを絞り込み、`--sandbox` でsandbox-execによる
+Seatbeltプロファイルを適用することで、意図しないコマンドの実行を防げます。
+
+## インストール
+
+```bash
+uv tool install /path/to/mcp-bridge
+```
+
+### 開発中に直接実行する場合
 
 ```bash
 uv sync
+uv run main.py
 ```
 
 ## 起動
 
 ```bash
-uv run main.py
+# サンドボックスなし
+mcp-bridge --config /path/to/tools.yaml
+
+# ポート指定
+mcp-bridge --config /path/to/tools.yaml --port 9000
+
+# Seatbeltサンドボックスあり (macOS)
+mcp-bridge --config /path/to/tools.yaml --sandbox /path/to/sandbox.sb
 ```
 
 `http://127.0.0.1:8000/mcp` でリスンします。
-
-## 実行ディレクトリ
-
-各コマンドは、起動時のカレントディレクトリに関わらず、
-常に `main.py` が置かれているディレクトリ(`mcp-server-demo/`)で実行されます。
 
 ## ツールの追加方法
 
@@ -47,20 +79,39 @@ tools:
 
 サーバーを再起動すると新しいツールが反映されます。
 
-## サンプルツール (tools.yaml)
+### 例: `import Darwin` を使う Swift パッケージの開発
 
-- `disk_usage`: `df -h`
-- `list_files`: `ls -la <path>` (path省略可、デフォルト `.`)
-- `current_time`: `date`
-- `ping_host`: `ping -c <count> <host>` (count省略可、デフォルト 4)
+`import Darwin` など macOS 固有の API を使う Swift パッケージは、Linux コンテナ内ではビルドできません。
+mcp-bridge をホストで動かすことで、コンテナ内のエージェントがホストの `swift build` を呼び出せます。
+
+```yaml
+tools:
+  - name: swift_build
+    description: ホスト上の Swift パッケージをビルドする (import Darwin など macOS 専用 API を含む場合に使用)
+    command: "swift build --package-path {path}"
+    parameters:
+      - name: path
+        type: string
+        description: Package.swift があるディレクトリのパス
+```
 
 ## クライアント設定例
+
+コンテナ起動時にポートフォワードを設定します。
+
+```bash
+docker run -p <port>:<port> ...
+# または devcontainer.json で
+# "forwardPorts": [<port>]
+```
+
+コンテナ側のMCPクライアントには `localhost` で接続できます。
 
 ```json
 {
   "mcpServers": {
     "mcp-bridge": {
-      "url": "http://127.0.0.1:8000/mcp"
+      "url": "http://localhost:<port>/mcp"
     }
   }
 }
