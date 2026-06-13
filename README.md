@@ -29,7 +29,7 @@ Seatbeltプロファイルを適用することで、意図しないコマンド
 ## インストール
 
 ```bash
-uv tool install /path/to/mcp-bridge
+uv tool install git+https://github.com/appare45/mcp-bridge
 ```
 
 ### 開発中に直接実行する場合
