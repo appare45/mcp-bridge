@@ -1,9 +1,9 @@
 #!/usr/bin/env -S uv run
 import argparse
+import asyncio
 import inspect
 import logging
 import shlex
-import subprocess
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -66,15 +66,26 @@ TYPE_MAP = {
 }
 
 
-def run_shell(command: str) -> str:
+async def run_shell(command: str) -> str:
     if SANDBOX_PROFILE:
         cmd = ["sandbox-exec", "-f", str(SANDBOX_PROFILE), "sh", "-c", command]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=WORK_DIR,
+        )
     else:
-        cmd = ["sh", "-c", command]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=WORK_DIR)
-    output = result.stdout
-    if result.stderr:
-        output += "\n" + result.stderr
+        proc = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=WORK_DIR,
+        )
+    stdout, stderr = await proc.communicate()
+    output = stdout.decode()
+    if stderr:
+        output += "\n" + stderr.decode()
     return output
 
 
@@ -97,10 +108,10 @@ def make_tool_func(tool_def: dict):
             )
         )
 
-    def tool_func(**kwargs) -> str:
+    async def tool_func(**kwargs) -> str:
         safe_values = {k: shlex.quote(str(v)) for k, v in kwargs.items()}
         command = command_template.format(**safe_values)
-        return run_shell(command)
+        return await run_shell(command)
 
     tool_func.__name__ = name
     tool_func.__doc__ = description
