@@ -97,24 +97,51 @@ tools:
 
 ## クライアント設定例
 
-コンテナ起動時にポートフォワードを設定します。
+プロジェクトルートの `.mcp.json` に追加します。
 
-```bash
-docker run -p <port>:<port> ...
-# または devcontainer.json で
-# "forwardPorts": [<port>]
+### ポートフォワードを使う場合（推奨）
+
+`devcontainer.json` でポートフォワードを設定します。
+
+```json
+"forwardPorts": [8000]
 ```
 
-コンテナ側のMCPクライアントには `localhost` で接続できます。
+ホスト側の起動：
 
-プロジェクトルートの `.mcp.json` に以下を追加します。
+```bash
+mcp-bridge --config /path/to/tools.yaml
+```
+
+`.mcp.json`：
 
 ```json
 {
   "mcpServers": {
     "mcp-bridge": {
       "type": "http",
-      "url": "http://localhost:<port>/mcp"
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+### `host.docker.internal` を使う場合
+
+ポートフォワードなしで接続する場合は `--allowed-hosts` でホスト名を許可します。
+
+```bash
+mcp-bridge --config /path/to/tools.yaml --allowed-hosts host.docker.internal
+```
+
+`.mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "mcp-bridge": {
+      "type": "http",
+      "url": "http://host.docker.internal:8000/mcp"
     }
   }
 }

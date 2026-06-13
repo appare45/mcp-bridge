@@ -33,13 +33,28 @@ parser.add_argument(
     "--port", type=int, default=8000,
     help="リスンするポート番号",
 )
+parser.add_argument(
+    "--allowed-hosts", dest="allowed_hosts", nargs="+", default=[],
+    metavar="HOST",
+    help="Host ヘッダとして許可する追加ホスト名 (例: host.docker.internal)",
+)
 args, _ = parser.parse_known_args()
 
 CONFIG_PATH: Path = args.config
 SANDBOX_PROFILE: Path = args.sandbox
 PORT: int = args.port
+ALLOWED_HOSTS: list[str] = args.allowed_hosts
 
-mcp = FastMCP("mcp-bridge")
+from mcp.server.fastmcp.server import TransportSecuritySettings
+
+_default_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+_extra_hosts = [h if ":" in h else f"{h}:*" for h in ALLOWED_HOSTS]
+_transport_security = (
+    TransportSecuritySettings(allowed_hosts=_default_hosts + _extra_hosts)
+    if ALLOWED_HOSTS else None
+)
+
+mcp = FastMCP("mcp-bridge", port=PORT, transport_security=_transport_security)
 
 TYPE_MAP = {
     "string": str,
@@ -112,7 +127,7 @@ load_tools()
 
 
 def run():
-    mcp.run(transport="streamable-http", port=PORT)
+    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":
