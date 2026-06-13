@@ -47,14 +47,16 @@ ALLOWED_HOSTS: list[str] = args.allowed_hosts
 
 from mcp.server.fastmcp.server import TransportSecuritySettings
 
-_default_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
-_extra_hosts = [h if ":" in h else f"{h}:*" for h in ALLOWED_HOSTS]
-_transport_security = (
-    TransportSecuritySettings(allowed_hosts=_default_hosts + _extra_hosts)
-    if ALLOWED_HOSTS else None
-)
 
-mcp = FastMCP("mcp-bridge", port=PORT, transport_security=_transport_security)
+def build_transport_security(extra_hosts: list[str]) -> TransportSecuritySettings | None:
+    if not extra_hosts:
+        return None
+    defaults = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    extras = [h if ":" in h else f"{h}:*" for h in extra_hosts]
+    return TransportSecuritySettings(allowed_hosts=defaults + extras)
+
+
+mcp = FastMCP("mcp-bridge", port=PORT, transport_security=build_transport_security(ALLOWED_HOSTS))
 
 TYPE_MAP = {
     "string": str,

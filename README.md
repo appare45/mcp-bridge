@@ -97,44 +97,13 @@ tools:
 
 ## クライアント設定例
 
-プロジェクトルートの `.mcp.json` に追加します。
-
-### ポートフォワードを使う場合（推奨）
-
-`devcontainer.json` でポートフォワードを設定します。
-
-```json
-"forwardPorts": [8000]
-```
-
-ホスト側の起動：
-
-```bash
-mcp-bridge --config /path/to/tools.yaml
-```
-
-`.mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "mcp-bridge": {
-      "type": "http",
-      "url": "http://localhost:8000/mcp"
-    }
-  }
-}
-```
-
-### `host.docker.internal` を使う場合
-
-ポートフォワードなしで接続する場合は `--allowed-hosts` でホスト名を許可します。
+ホスト側の起動（`host.docker.internal` を許可）：
 
 ```bash
 mcp-bridge --config /path/to/tools.yaml --allowed-hosts host.docker.internal
 ```
 
-`.mcp.json`：
+プロジェクトルートの `.mcp.json`：
 
 ```json
 {
@@ -146,3 +115,7 @@ mcp-bridge --config /path/to/tools.yaml --allowed-hosts host.docker.internal
   }
 }
 ```
+
+> **Linux の場合** `host.docker.internal` が解決できないことがあります。
+> その場合は `docker run --add-host=host-gateway:host-gateway` でホストのIPを注入するか、
+> ブリッジネットワークのゲートウェイIP（通常 `172.17.0.1`）を直接指定してください。
