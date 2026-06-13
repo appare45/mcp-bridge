@@ -38,12 +38,17 @@ parser.add_argument(
     metavar="HOST",
     help="Host ヘッダとして許可する追加ホスト名 (例: host.docker.internal)",
 )
+parser.add_argument(
+    "--verbose", "-v", action="store_true", default=False,
+    help="ツール実行時の stdout/stderr をターミナルにも出力する",
+)
 args, _ = parser.parse_known_args()
 
 CONFIG_PATH: Path = args.config
 SANDBOX_PROFILE: Path = args.sandbox
 PORT: int = args.port
 ALLOWED_HOSTS: list[str] = args.allowed_hosts
+VERBOSE: bool = args.verbose
 
 from mcp.server.fastmcp.server import TransportSecuritySettings
 
@@ -84,8 +89,14 @@ async def run_shell(command: str) -> str:
         )
     stdout, stderr = await proc.communicate()
     output = stdout.decode()
-    if stderr:
-        output += "\n" + stderr.decode()
+    stderr_text = stderr.decode()
+    if VERBOSE:
+        if output:
+            logging.info("[stdout]\n%s", output.rstrip())
+        if stderr_text:
+            logging.warning("[stderr]\n%s", stderr_text.rstrip())
+    if stderr_text:
+        output += "\n" + stderr_text
     return output
 
 
